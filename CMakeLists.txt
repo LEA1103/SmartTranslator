@@ -4,10 +4,15 @@ project(smart-translator)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Qt 项目必须开启这三行
+# 关键：开启自动 moc，避免 Qt 符号缺失
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
+
+# 针对 macOS 强制指定架构
+if(APPLE)
+    set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build for arm64 only")
+endif()
 
 find_package(Qt5 REQUIRED COMPONENTS Core Widgets Gui)
 
