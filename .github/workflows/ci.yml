@@ -41,7 +41,7 @@ jobs:
           path: build/Release/*.exe
           retention-days: 7
 
-build-macos:
+  build-macos:
     name: Build on macOS
     runs-on: macos-latest
     steps:
@@ -69,7 +69,6 @@ build-macos:
           name: macos-build
           path: build/bin/*
           retention-days: 7
-
   build-linux:
     name: Build on Linux
     runs-on: ubuntu-latest
