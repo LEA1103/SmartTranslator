@@ -11,14 +11,14 @@ set(CMAKE_AUTOUIC ON)
 find_package(Qt5 REQUIRED COMPONENTS Core Widgets Gui)
 
 file(GLOB_RECURSE SRCS
-    src/*.cpp
-    include/*.h
+  src/*.cpp
+  include/*.h
 )
 
 add_executable(${PROJECT_NAME} ${SRCS})
 
 target_link_libraries(${PROJECT_NAME}
-    Qt5::Core
-    Qt5::Widgets
-    Qt5::Gui
+  Qt5::Core
+  Qt5::Widgets
+  Qt5::Gui
 )
