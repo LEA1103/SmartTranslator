@@ -53,10 +53,8 @@ jobs:
           host: mac
           target: desktop
 
-      - name: Configure CMake
-        run: |
-          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_PREFIX_PATH=${{ env.Qt5_DIR }}
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=${{ env.Qt5_DIR }}
 
       - name: Build
         run: cmake --build build
