@@ -1,0 +1,5 @@
+PROJECT_NAME           = "Smart Translator"
+OUTPUT_DIRECTORY       = api
+GENERATE_LATEX         = NO
+INPUT                  = include src
+RECURSIVE              = YES
