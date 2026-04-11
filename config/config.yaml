@@ -1,0 +1,6 @@
+app:
+  name: SmartTranslator
+  version: 1.0.0
+
+ocr:
+  language: chi_sim+eng
