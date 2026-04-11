@@ -7,6 +7,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  BUILD_TYPE: Release
+
 jobs:
   build-windows:
     name: Windows
@@ -42,23 +45,19 @@ jobs:
 
   build-macos:
     name: macOS
-    runs-on: macos-13
+    runs-on: macos-13  # 这里只保留大版本，去掉多余的区域后缀
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Qt via brew
+      - name: Install Qt
         run: brew install qt@5
 
-      - name: Configure
+      - name: Configure CMake
         run: |
-          export PATH="/usr/local/opt/qt@5/bin:$PATH"
-          export LDFLAGS="-L/usr/local/opt/qt@5/lib"
-          export CPPFLAGS="-I/usr/local/opt/qt@5/include"
-          cmake -B build -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5
+          export CMAKE_PREFIX_PATH=/usr/local/opt/qt@5
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build
-        run: cmake --build build
+      - run: cmake --build build
 
       - uses: actions/upload-artifact@v4
         with:
