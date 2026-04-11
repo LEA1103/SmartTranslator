@@ -42,17 +42,15 @@ jobs:
 
   build-macos:
     name: macOS
-    runs-on: macos-13
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: 5.15.2
           host: mac
           target: desktop
-
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=${{ env.Qt5_DIR }}
 
