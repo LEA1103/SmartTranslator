@@ -46,13 +46,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Qt via brew
-        run: brew install qt@5
+      # 改用 jurplel/install-qt-action，它专门为 CI 环境优化过
+      - name: Install Qt 5.15.2
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 5.15.2
+          host: mac
+          target: desktop
 
       - name: Configure
-        run: |
-          export CMAKE_PREFIX_PATH=/usr/local/opt/qt@5
-          cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+        env:
+          Qt5_DIR: ${{ env.Qt5_DIR }}
 
       - name: Build
         run: cmake --build build
