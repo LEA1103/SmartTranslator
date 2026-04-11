@@ -7,94 +7,76 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-env:
-  BUILD_TYPE: Release
-
 jobs:
   build-windows:
-    name: Build on Windows
+    name: Windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - uses: jurplel/install-qt-action@v4
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
         with:
           version: 5.15.2
           host: windows
           target: desktop
           arch: win64_msvc2019_64
-
-      - run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-
-      - run: cmake --build build --config Release --parallel
-
+      - run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build --config Release
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-build
-          path: build/Release/*.exe
-          retention-days: 7
-
-  build-macos:
-    name: Build on macOS
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: jurplel/install-qt-action@v4
-        with:
-          version: 5.15.2
-          host: mac
-          target: desktop
-
-      - name: Configure CMake (Qt 路径强制修复)
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=${{ env.Qt5_DIR }}
-
-      - run: cmake --build build --parallel
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos-build
-          path: build/smart-translator
-          retention-days: 7
+          name: windows-exe
+          path: build/Release/smart-translator.exe
 
   build-linux:
-    name: Build on Linux
+    name: Linux
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: sudo apt update && sudo apt install -y qtbase5-dev cmake
+      - run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-bin
+          path: build/smart-translator
 
-      - run: |
-          sudo apt-get update
-          sudo apt-get install -y qtbase5-dev qt5-qmake build-essential cmake
+  build-macos:
+    name: macOS
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
 
-      - run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+      - name: Install Qt via brew
+        run: brew install qt@5
 
-      - run: cmake --build build --parallel
+      - name: Configure
+        run: |
+          export PATH="/usr/local/opt/qt@5/bin:$PATH"
+          export LDFLAGS="-L/usr/local/opt/qt@5/lib"
+          export CPPFLAGS="-I/usr/local/opt/qt@5/include"
+          cmake -B build -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5
+
+      - name: Build
+        run: cmake --build build
 
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-build
+          name: macos-bin
           path: build/smart-translator
-          retention-days: 7
 
   release:
-    name: Create Release
-    needs: [build-windows, build-macos, build-linux]
-    runs-on: ubuntu-latest
+    name: Release
     if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
-
       - uses: softprops/action-gh-release@v2
         with:
           files: |
-            windows-build/*
-            macos-build/*
-            linux-build/*
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+            windows-exe/*
+            linux-bin/*
+            macos-bin/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
