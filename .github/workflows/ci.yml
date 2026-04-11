@@ -7,9 +7,6 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-env:
-  BUILD_TYPE: Release
-
 jobs:
   build-windows:
     name: Windows
@@ -45,22 +42,20 @@ jobs:
 
   build-macos:
     name: macOS
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
 
-      # 1. 安装指定版本的 Qt（避开 brew 不稳定问题）
-      - name: Install Qt 5.15.2
+      - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: 5.15.2
           host: mac
           target: desktop
 
-      # 2. 强制指定 Qt 安装路径，确保 arm64 链接正确
       - name: Configure CMake
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_OSX_ARCHITECTURES=arm64 \
+        run: |
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_PREFIX_PATH=${{ env.Qt5_DIR }}
 
       - name: Build
