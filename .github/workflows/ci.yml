@@ -7,6 +7,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  BUILD_TYPE: Release
+
 jobs:
   build-windows:
     name: Windows
@@ -46,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 改用 jurplel/install-qt-action，它专门为 CI 环境优化过
+      # 1. 安装指定版本的 Qt（避开 brew 不稳定问题）
       - name: Install Qt 5.15.2
         uses: jurplel/install-qt-action@v4
         with:
@@ -54,10 +57,11 @@ jobs:
           host: mac
           target: desktop
 
-      - name: Configure
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
-        env:
-          Qt5_DIR: ${{ env.Qt5_DIR }}
+      # 2. 强制指定 Qt 安装路径，确保 arm64 链接正确
+      - name: Configure CMake
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_OSX_ARCHITECTURES=arm64 \
+          -DCMAKE_PREFIX_PATH=${{ env.Qt5_DIR }}
 
       - name: Build
         run: cmake --build build
