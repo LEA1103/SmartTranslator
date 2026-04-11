@@ -5,15 +5,11 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-
     QMainWindow w;
-    w.setWindowTitle("Smart Translator");
-    w.resize(800, 500);
-
-    QLabel *label = new QLabel("Smart Translator 运行成功!", &w);
+    w.setWindowTitle("Translator");
+    QLabel *label = new QLabel("Build Success!", &w);
     label->setAlignment(Qt::AlignCenter);
     w.setCentralWidget(label);
-
     w.show();
     return a.exec();
 }
