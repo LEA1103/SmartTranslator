@@ -4,7 +4,7 @@ project(smart-translator)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 必须开启，否则 macOS 链接失败
+# Qt 项目必须开启这三行
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
