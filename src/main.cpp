@@ -10,9 +10,9 @@ int main(int argc, char *argv[])
     w.setWindowTitle("Smart Translator");
     w.resize(800, 500);
 
-    QLabel label("Smart Translator 运行成功!", &w);
-    label.setAlignment(Qt::AlignCenter);
-    w.setCentralWidget(&label);
+    QLabel *label = new QLabel("Smart Translator 运行成功!", &w);
+    label->setAlignment(Qt::AlignCenter);
+    w.setCentralWidget(label);
 
     w.show();
     return a.exec();
