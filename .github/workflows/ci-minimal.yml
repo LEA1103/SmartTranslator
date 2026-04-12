@@ -5,11 +5,10 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:   # 允许手动触发
+  workflow_dispatch:
 
 env:
   BUILD_TYPE: Release
-  QT_VERSION: "5.15.2"
 
 jobs:
   build-windows:
@@ -21,31 +20,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Install vcpkg dependencies
+
+      - name: Install vcpkg & dependencies
         run: |
           git clone https://github.com/Microsoft/vcpkg.git
           .\vcpkg\bootstrap-vcpkg.bat
-          .\vcpkg\vcpkg install qt5:x64-windows
-          .\vcpkg\vcpkg install tesseract:x64-windows
-          .\vcpkg\vcpkg install curl:x64-windows
-          .\vcpkg\vcpkg install yaml-cpp:x64-windows
-          .\vcpkg\vcpkg install sqlite3:x64-windows
-          .\vcpkg\vcpkg install gtest:x64-windows
-      - name: Debug - list vcpkg installed packages
-        run: .\vcpkg\vcpkg list
-      - name: Debug - check Qt path existence
-        run: |
-          if (Test-Path "C:\Qt\${{ env.QT_VERSION }}\msvc2019_64\lib\cmake\Qt5") {
-          Write-Host "Qt5 CMake config found"
-          } else {
-          Write-Host "Qt5 CMake config NOT found"
-          }
+          .\vcpkg\vcpkg install qt5:x64-windows tesseract:x64-windows curl:x64-windows yaml-cpp:x64-windows sqlite3:x64-windows gtest:x64-windows
+
       - name: Configure CMake
-        run: |
-          cmake -B build `
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-            -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake `
-            -DCMAKE_PREFIX_PATH="C:\Qt\${{ env.QT_VERSION }}\msvc2019_64"
+        run: cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -A x64
 
       - name: Build
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
@@ -54,7 +37,7 @@ jobs:
         working-directory: build
         run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
 
-      - name: Upload build artifact (optional)
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: smart-translator-windows
