@@ -1,5 +1,27 @@
+[cppcheck]
+# 检查选项
 enable=all
 inconclusive
 inline-suppr
-xml
-xml-version=2
+
+# 路径
+include=include
+src=src
+tests=tests
+
+# 排除路径
+exclude=build/
+exclude=third_party/
+
+# 检查规则
+--inline-suppr
+--suppress=unusedFunction
+--suppress=missingIncludeSystem
+
+# 输出
+--xml
+--xml-version=2
+-j=4
+
+# 严重等级
+--error-exitcode=1
