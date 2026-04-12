@@ -1,21 +1,20 @@
-name: Notify Build Status
+name: Notify
 
 on:
   workflow_run:
-    workflows: ["CI/CD Pipeline"]
-    types: [completed]
+    workflows: ["C++ CI Build & Check"] # 对应上面的 job 名
+    types:
+      - completed
 
 jobs:
-  notify:
+  send-notification:
+    name: Send Notification
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion != 'success' }}
-
     steps:
-      - name: 发送Slack通知
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          text: '构建失败：${{ github.repository }}'
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 这里写你的通知逻辑（如发送到 Slack/企业微信/钉钉等）
+      - name: Print Status
+        run: |
+          echo "Build Status: ${{ github.event.workflow_run.conclusion }}"
