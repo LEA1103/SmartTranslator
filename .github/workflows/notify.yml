@@ -1,0 +1,21 @@
+name: Notify Build Status
+
+on:
+  workflow_run:
+    workflows: ["CI/CD Pipeline"]
+    types: [completed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion != 'success' }}
+
+    steps:
+      - name: 发送Slack通知
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: '构建失败：${{ github.repository }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
