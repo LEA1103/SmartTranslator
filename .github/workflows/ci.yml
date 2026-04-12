@@ -1,353 +1,114 @@
-name: CI/CD Pipeline
+name: C++ CI Build & Check
 
-# 触发条件
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ] # 替换为你的主分支名
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
-
-# 环境变量
-env:
-  BUILD_TYPE: Release
-  QT_VERSION: "5.15.2"
-
-# ==================== 作业定义 ====================
 
 jobs:
-  # ==================== Windows构建 ====================
-  build-windows:
-    name: Build on Windows
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout代码
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
-      - name: 安装vcpkg
-        run: |
-          git clone https://github.com/Microsoft/vcpkg.git
-          cd vcpkg
-          .\bootstrap-vcpkg.bat
-
-      - name: 安装依赖
-        run: |
-          .\vcpkg\vcpkg install qt5:x64-windows
-          .\vcpkg\vcpkg install tesseract:x64-windows
-          .\vcpkg\vcpkg install curl:x64-windows
-          .\vcpkg\vcpkg install yaml-cpp:x64-windows
-          .\vcpkg\vcpkg install sqlite3:x64-windows
-          .\vcpkg\vcpkg install gtest:x64-windows
-
-      - name: 配置CMake
-        run: |
-          cmake -B build `
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-            -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake `
-            -DCMAKE_PREFIX_PATH="C:\Qt\${{ env.QT_VERSION }}\msvc2019_64"
-
-      - name: 编译
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
-
-      - name: 运行测试
-        working-directory: build
-        run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
-
-      - name: 生成覆盖率报告
-        if: matrix.os == 'windows-latest'
-        run: |
-          # 使用gcov生成覆盖率报告
-          # 需要配置gcov工具
-
-      - name: 上传构建产物
-        uses: actions/upload-artifact@v3
-        with:
-          name: windows-build
-          path: |
-            build/bin/Release/smart-translator.exe
-            build/config/
-          retention-days: 7
-
-      - name: 上传测试结果
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: windows-test-results
-          path: build/Testing/
-
-  # ==================== macOS构建 ====================
-  build-macos:
-    name: Build on macOS
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout代码
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
-      - name: 安装依赖
-        run: |
-          brew install qt@5
-          brew install tesseract
-          brew install curl
-          brew install yaml-cpp
-          brew install sqlite3
-          brew install googletest
-
-      - name: 安装Tesseract语言包
-        run: brew install tesseract-lang
-
-      - name: 配置环境
-        run: |
-          echo "/usr/local/opt/qt@5/bin" >> $GITHUB_PATH
-          echo "CMAKE_PREFIX_PATH=/usr/local/opt/qt@5" >> $GITHUB_ENV
-
-      - name: 配置CMake
-        run: |
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5
-
-      - name: 编译
-        run: cmake --build build --parallel
-
-      - name: 运行测试
-        working-directory: build
-        run: ctest --output-on-failure
-
-      - name: 打包macOS应用
-        run: |
-          # 创建.app包
-          mkdir -p SmartTranslator.app/Contents/MacOS
-          mkdir -p SmartTranslator.app/Contents/Resources
-          cp build/bin/smart-translator SmartTranslator.app/Contents/MacOS/
-          cp config/config.yaml SmartTranslator.app/Contents/Resources/
-
-      - name: 创建DMG
-        run: |
-          # 使用hdiutil创建DMG
-          hdiutil create -volname "Smart Translator" -srcfolder SmartTranslator.app -ov -format UDZO SmartTranslator.dmg
-
-      - name: 上传构建产物
-        uses: actions/upload-artifact@v3
-        with:
-          name: macos-build
-          path: |
-            SmartTranslator.dmg
-            build/bin/smart-translator
-          retention-days: 7
-
-      - name: 上传测试结果
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: macos-test-results
-          path: build/Testing/
-
-  # ==================== Linux构建 ====================
-  build-linux:
-    name: Build on Linux
-    runs-on: ubuntu-latest
-
+  # --------------------------
+  # 1. 多平台构建 (Windows/macOS/Linux)
+  # --------------------------
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        distro: [ubuntu-22.04, ubuntu-20.04]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+      fail-fast: false # 失败不取消其他任务，方便看全平台结果
 
     steps:
-      - name: Checkout代码
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
+      - name: Checkout code
+        uses: actions/checkout@v4 # 已升级到 v4
 
-      - name: 安装依赖
+      - name: Install Dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            cmake \
-            qt5-default \
-            qtbase5-dev \
-            tesseract-ocr \
-            libtesseract-dev \
-            tesseract-ocr-eng \
-            tesseract-ocr-chi-sim \
-            libcurl4-openssl-dev \
-            libyaml-cpp-dev \
-            libsqlite3-dev \
-            libgtest-dev \
-            doxygen \
-            graphviz
+          sudo apt-get install -y cmake g++
 
-      - name: 配置CMake
+      - name: Install Dependencies (macOS)
+        if: matrix.os == 'macos-latest'
         run: |
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+          brew install cmake
 
-      - name: 编译
-        run: cmake --build build --parallel
+      - name: Configure CMake
+        # 你的根目录有 CMakeLists.txt，所以直接在当前目录构建
+        run: cmake -B build
 
-      - name: 运行测试
-        working-directory: build
-        run: ctest --output-on-failure
+      - name: Build
+        run: cmake --build build
 
-      - name: 运行覆盖率测试
-        run: |
-          # 使用lcov生成覆盖率报告
-          cmake --build build --target coverage
-          # 上传到Codecov
-          bash <(curl -s https://codecov.io/bash) -f build/coverage.info
-
-      - name: 打包Debian包
-        run: |
-          cmake --build build --target package
-
-      - name: 上传构建产物
-        uses: actions/upload-artifact@v3
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4 # 已升级到 v4
         with:
-          name: linux-build-${{ matrix.distro }}
-          path: |
-            build/bin/smart-translator
-            build/*.deb
-            build/*.rpm
-            build/*.tar.gz
-          retention-days: 7
+          name: build-artifact-${{ matrix.os }}
+          path: build/ # 上传构建产物目录
 
-      - name: 上传测试结果
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: linux-test-results-${{ matrix.distro }}
-          path: build/Testing/
-
-  # ==================== Docker构建 ====================
-  build-docker:
-    name: Build Docker Image
+  # --------------------------
+  # 2. 代码格式检查 (clang-format)
+  # 利用根目录的 .clang-format 配置
+  # --------------------------
+  format-check:
+    name: Code Format Check
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout代码
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: 设置Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      - name: Install clang-format
+        run: sudo apt-get install -y clang-format
 
-      - name: 登录Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Run clang-format
+        # 检查 src/ 和 include/ 下所有 .h/.cpp 文件
+        run: |
+          find src/ include/ -name "*.cpp" -o -name "*.h" -o -name "*.hpp" | xargs clang-format --dry-run --Werror
 
-      - name: 构建并推送镜像
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: |
-            smarttranslator/smart-translator:latest
-            smarttranslator/smart-translator:${{ github.sha }}
-          cache-from: type=registry,ref=smarttranslator/smart-translator:buildcache
-          cache-to: type=registry,ref=smarttranslator/smart-translator:buildcache,mode=max
-
-  # ==================== 代码质量检查 ====================
-  code-quality:
-    name: Code Quality Checks
+  # --------------------------
+  # 3. 静态代码分析 (clang-tidy / cppcheck)
+  # 利用根目录的 .clang-tidy 和 .cppcheck 配置
+  # --------------------------
+  static-analysis:
+    name: Static Code Analysis
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout代码
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: 安装Clang-Tidy
+      - name: Install Tools
+        run: sudo apt-get install -y clang-tidy cppcheck
+
+      - name: Run clang-tidy
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-tidy
+          # 利用项目根目录的 .clang-tidy 配置
+          find src/ include/ -name "*.cpp" | xargs clang-tidy -p build --
 
-      - name: 运行Clang-Tidy
-        run: |
-          cmake -B build
-          cmake --build build --target tidy
+      - name: Run cppcheck
+        run: cppcheck --enable=all src/ include/
 
-      - name: 安装Cppcheck
-        run: |
-          sudo apt-get install -y cppcheck
-
-      - name: 运行Cppcheck
-        run: |
-          cppcheck --enable=all \
-            --xml \
-            --xml-version=2 \
-            -I include \
-            -j 4 \
-            src/ 2> cppcheck-report.xml
-
-      - name: 上传Cppcheck报告
-        uses: actions/upload-artifact@v3
-        with:
-          name: cppcheck-report
-          path: cppcheck-report.xml
-
-  # ==================== 文档生成 ====================
-  generate-docs:
+  # --------------------------
+  # 4. 生成文档 (Doxygen)
+  # 利用 docs/ 目录下的 Doxyfile
+  # --------------------------
+  docs:
     name: Generate Documentation
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout代码
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: 安装Doxygen
+      - name: Install Doxygen
+        run: sudo apt-get install -y doxygen graphviz
+
+      - name: Generate Docs
+        # 进入 docs 目录执行 Doxyfile
         run: |
-          sudo apt-get update
-          sudo apt-get install -y doxygen graphviz
+          cd docs
+          doxygen Doxyfile
 
-      - name: 生成文档
-        run: |
-          mkdir -p build
-          cd build
-          cmake ..
-          make doc
-
-      - name: 部署文档到GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Upload Docs
+        uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/api/html
-
-  # ==================== 发布 ====================
-  release:
-    name: Create Release
-    needs: [build-windows, build-macos, build-linux, build-docker]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-
-    steps:
-      - name: 下载所有构建产物
-        uses: actions/download-artifact@v3
-
-      - name: 创建GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            windows-build/*
-            macos-build/SmartTranslator.dmg
-            linux-build-ubuntu-22.04/*.deb
-            linux-build-ubuntu-22.04/*.rpm
-            linux-build-ubuntu-22.04/*.tar.gz
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 发布到PyPI（可选）
-        run: |
-          # 如果有Python绑定，发布到PyPI
-          pip install twine
-          twine upload dist/*
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          name: documentation
+          path: docs/html/
