@@ -33,13 +33,29 @@ jobs:
           .\vcpkg\vcpkg install sqlite3:x64-windows
           .\vcpkg\vcpkg install gtest:x64-windows
 
-      - name: Configure CMake
-        run: |
-          cmake -B build `
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-            -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake `
-            -DCMAKE_PREFIX_PATH="C:\Qt\${{ env.QT_VERSION }}\msvc2019_64"
+- name: Debug - list vcpkg installed packages
+  run: .\vcpkg\vcpkg list
 
+- name: Debug - check Qt path existence
+  run: |
+    if (Test-Path "C:\Qt\${{ env.QT_VERSION }}\msvc2019_64\lib\cmake\Qt5") {
+      Write-Host "Qt5 CMake config found"
+    } else {
+      Write-Host "Qt5 CMake config NOT found"
+    }
+
+- name: Configure CMake
+  run: |
+    cmake -B build `
+      -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+      -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake `
+      -DCMAKE_PREFIX_PATH="C:\Qt\${{ env.QT_VERSION }}\msvc2019_64"
+    # 打印 CMake 缓存中的关键变量
+    cmake -L build | findstr "Qt5_DIR Tesseract_DIR CURL_DIR yaml-cpp_DIR SQLite3_DIR GTest_DIR"
+
+- name: Run tests
+  working-directory: build
+  run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
       - name: Build
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
 
