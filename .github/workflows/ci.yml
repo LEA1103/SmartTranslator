@@ -1,5 +1,6 @@
 name: CI/CD Pipeline
 
+# 触发条件
 on:
   push:
     branches: [ main, develop ]
@@ -7,73 +8,346 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# 环境变量
+env:
+  BUILD_TYPE: Release
+  QT_VERSION: "5.15.2"
+
+# ==================== 作业定义 ====================
+
 jobs:
+  # ==================== Windows构建 ====================
   build-windows:
-    name: Windows
+    name: Build on Windows
     runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: 5.15.2
-          host: windows
-          target: desktop
-          arch: win64_msvc2019_64
-      - run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-      - run: cmake --build build --config Release
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-exe
-          path: build/Release/smart-translator.exe
 
-  build-linux:
-    name: Linux
-    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: sudo apt update && sudo apt install -y qtbase5-dev cmake
-      - run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-      - run: cmake --build build
-      - uses: actions/upload-artifact@v4
+      - name: Checkout代码
+        uses: actions/checkout@v3
         with:
-          name: linux-bin
-          path: build/smart-translator
+          submodules: recursive
 
+      - name: 安装vcpkg
+        run: |
+          git clone https://github.com/Microsoft/vcpkg.git
+          cd vcpkg
+          .\bootstrap-vcpkg.bat
+
+      - name: 安装依赖
+        run: |
+          .\vcpkg\vcpkg install qt5:x64-windows
+          .\vcpkg\vcpkg install tesseract:x64-windows
+          .\vcpkg\vcpkg install curl:x64-windows
+          .\vcpkg\vcpkg install yaml-cpp:x64-windows
+          .\vcpkg\vcpkg install sqlite3:x64-windows
+          .\vcpkg\vcpkg install gtest:x64-windows
+
+      - name: 配置CMake
+        run: |
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake `
+            -DCMAKE_PREFIX_PATH="C:\Qt\${{ env.QT_VERSION }}\msvc2019_64"
+
+      - name: 编译
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: 运行测试
+        working-directory: build
+        run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
+
+      - name: 生成覆盖率报告
+        if: matrix.os == 'windows-latest'
+        run: |
+          # 使用gcov生成覆盖率报告
+          # 需要配置gcov工具
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-build
+          path: |
+            build/bin/Release/smart-translator.exe
+            build/config/
+          retention-days: 7
+
+      - name: 上传测试结果
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-test-results
+          path: build/Testing/
+
+  # ==================== macOS构建 ====================
   build-macos:
-    name: macOS
+    name: Build on macOS
     runs-on: macos-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
+      - name: Checkout代码
+        uses: actions/checkout@v3
         with:
-          version: 5.15.2
-          host: mac
-          target: desktop
-      - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=${{ env.Qt5_DIR }}
+          submodules: recursive
 
-      - name: Build
-        run: cmake --build build
+      - name: 安装依赖
+        run: |
+          brew install qt@5
+          brew install tesseract
+          brew install curl
+          brew install yaml-cpp
+          brew install sqlite3
+          brew install googletest
 
-      - uses: actions/upload-artifact@v4
+      - name: 安装Tesseract语言包
+        run: brew install tesseract-lang
+
+      - name: 配置环境
+        run: |
+          echo "/usr/local/opt/qt@5/bin" >> $GITHUB_PATH
+          echo "CMAKE_PREFIX_PATH=/usr/local/opt/qt@5" >> $GITHUB_ENV
+
+      - name: 配置CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_PREFIX_PATH=/usr/local/opt/qt@5
+
+      - name: 编译
+        run: cmake --build build --parallel
+
+      - name: 运行测试
+        working-directory: build
+        run: ctest --output-on-failure
+
+      - name: 打包macOS应用
+        run: |
+          # 创建.app包
+          mkdir -p SmartTranslator.app/Contents/MacOS
+          mkdir -p SmartTranslator.app/Contents/Resources
+          cp build/bin/smart-translator SmartTranslator.app/Contents/MacOS/
+          cp config/config.yaml SmartTranslator.app/Contents/Resources/
+
+      - name: 创建DMG
+        run: |
+          # 使用hdiutil创建DMG
+          hdiutil create -volname "Smart Translator" -srcfolder SmartTranslator.app -ov -format UDZO SmartTranslator.dmg
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v3
         with:
-          name: macos-bin
-          path: build/smart-translator
+          name: macos-build
+          path: |
+            SmartTranslator.dmg
+            build/bin/smart-translator
+          retention-days: 7
 
-  release:
-    name: Release
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build-windows, build-linux, build-macos]
+      - name: 上传测试结果
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-test-results
+          path: build/Testing/
+
+  # ==================== Linux构建 ====================
+  build-linux:
+    name: Build on Linux
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        distro: [ubuntu-22.04, ubuntu-20.04]
+
     steps:
-      - uses: actions/download-artifact@v4
-      - uses: softprops/action-gh-release@v2
+      - name: Checkout代码
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: 安装依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            qt5-default \
+            qtbase5-dev \
+            tesseract-ocr \
+            libtesseract-dev \
+            tesseract-ocr-eng \
+            tesseract-ocr-chi-sim \
+            libcurl4-openssl-dev \
+            libyaml-cpp-dev \
+            libsqlite3-dev \
+            libgtest-dev \
+            doxygen \
+            graphviz
+
+      - name: 配置CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: 编译
+        run: cmake --build build --parallel
+
+      - name: 运行测试
+        working-directory: build
+        run: ctest --output-on-failure
+
+      - name: 运行覆盖率测试
+        run: |
+          # 使用lcov生成覆盖率报告
+          cmake --build build --target coverage
+          # 上传到Codecov
+          bash <(curl -s https://codecov.io/bash) -f build/coverage.info
+
+      - name: 打包Debian包
+        run: |
+          cmake --build build --target package
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-build-${{ matrix.distro }}
+          path: |
+            build/bin/smart-translator
+            build/*.deb
+            build/*.rpm
+            build/*.tar.gz
+          retention-days: 7
+
+      - name: 上传测试结果
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-test-results-${{ matrix.distro }}
+          path: build/Testing/
+
+  # ==================== Docker构建 ====================
+  build-docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout代码
+        uses: actions/checkout@v3
+
+      - name: 设置Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: 登录Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: 构建并推送镜像
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            smarttranslator/smart-translator:latest
+            smarttranslator/smart-translator:${{ github.sha }}
+          cache-from: type=registry,ref=smarttranslator/smart-translator:buildcache
+          cache-to: type=registry,ref=smarttranslator/smart-translator:buildcache,mode=max
+
+  # ==================== 代码质量检查 ====================
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout代码
+        uses: actions/checkout@v3
+
+      - name: 安装Clang-Tidy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy
+
+      - name: 运行Clang-Tidy
+        run: |
+          cmake -B build
+          cmake --build build --target tidy
+
+      - name: 安装Cppcheck
+        run: |
+          sudo apt-get install -y cppcheck
+
+      - name: 运行Cppcheck
+        run: |
+          cppcheck --enable=all \
+            --xml \
+            --xml-version=2 \
+            -I include \
+            -j 4 \
+            src/ 2> cppcheck-report.xml
+
+      - name: 上传Cppcheck报告
+        uses: actions/upload-artifact@v3
+        with:
+          name: cppcheck-report
+          path: cppcheck-report.xml
+
+  # ==================== 文档生成 ====================
+  generate-docs:
+    name: Generate Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout代码
+        uses: actions/checkout@v3
+
+      - name: 安装Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+
+      - name: 生成文档
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          make doc
+
+      - name: 部署文档到GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/api/html
+
+  # ==================== 发布 ====================
+  release:
+    name: Create Release
+    needs: [build-windows, build-macos, build-linux, build-docker]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: 下载所有构建产物
+        uses: actions/download-artifact@v3
+
+      - name: 创建GitHub Release
+        uses: softprops/action-gh-release@v1
         with:
           files: |
-            windows-exe/*
-            linux-bin/*
-            macos-bin/*
+            windows-build/*
+            macos-build/SmartTranslator.dmg
+            linux-build-ubuntu-22.04/*.deb
+            linux-build-ubuntu-22.04/*.rpm
+            linux-build-ubuntu-22.04/*.tar.gz
+          draft: false
+          prerelease: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 发布到PyPI（可选）
+        run: |
+          # 如果有Python绑定，发布到PyPI
+          pip install twine
+          twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
