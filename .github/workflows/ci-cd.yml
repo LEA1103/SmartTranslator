@@ -56,7 +56,7 @@ jobs:
           name: linux-deb
           path: build/*.deb
 
-  # 3. macOS 构建 (修复 Qt 路径问题)
+ # macOS 构建步骤片段
   build-macos:
     name: Build macOS
     runs-on: macos-latest
@@ -66,12 +66,12 @@ jobs:
 
       - name: 安装依赖
         run: |
-          brew install cmake qt@5 tesseract yaml-cpp sqlite3
+          brew install cmake qt@5 tesseract yaml-cpp sqlite3 pkg-config  # 新增 pkg-config
 
       - name: 配置 CMake
         run: |
           cmake -B build \
-            -DCMAKE_BUILD_TYPE=Release \
+            -  DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt@5
 
       - name: 编译
