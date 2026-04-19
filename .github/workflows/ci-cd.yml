@@ -1,57 +1,35 @@
-name: CI/CD Pipeline (Windows Only)
+build-windows:
+  name: Build Windows
+  runs-on: windows-latest
+  steps:
+    - uses: actions/checkout@v4
 
-on:
-  push:
-    branches: [ main ]
-    tags: [ 'v*' ]
-  pull_request:
-    branches: [ main ]
+    # 安装依赖
+    - name: 安装依赖
+      run: |
+        choco install cmake qt5-default nsis
+        refreshenv  # 刷新环境变量，让系统识别新安装的工具
 
-jobs:
-  # 仅构建 Windows
-  build-windows:
-    name: Build Windows
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
+    # 关键：获取Qt安装路径并传递给CMake
+    - name: 配置 CMake
+      run: |
+        # 找到qmake的位置，提取Qt根目录
+        $qmakePath = (Get-Command qmake -ErrorAction Stop).Source
+        $qtDir = Split-Path (Split-Path $qmakePath -Parent) -Parent
+        Write-Host "Qt安装路径: $qtDir"
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$qtDir"
 
-      # 安装编译工具 + Qt5
-      - name: 安装依赖
-        run: |
-          choco install cmake qt5-default nsis
+    # 编译项目
+    - name: 编译
+      run: cmake --build build --config Release
 
-      # 配置 CMake
-      - name: 配置 CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+    # 打包exe安装包
+    - name: 打包安装包
+      run: makensis installer.nsi
 
-      # 编译项目
-      - name: 编译
-        run: cmake --build build --config Release
-
-      # 打包 exe 安装包
-      - name: 打包安装包
-        run: |
-          makensis installer.nsi
-
-      # 上传安装包
-      - name: 上传安装包
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-installer
-          path: "*.exe"
-
-  # 打标签时自动发布 Release
-  release:
-    name: Create Release
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    needs: build-windows
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-      - name: 发布到 GitHub Releases
-        uses: softprops/action-gh-release@v2
-        with:
-          files: windows-installer/*.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # 上传安装包
+    - name: 上传安装包
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-installer
+        path: "*.exe"
