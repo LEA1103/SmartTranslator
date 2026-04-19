@@ -4,7 +4,7 @@ project(SmartTranslator VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 覆盖率选项（保留）
+# 覆盖率选项
 option(CODE_COVERAGE "Enable coverage reporting" OFF)
 if(CODE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   add_compile_options(-O0 -g --coverage)
@@ -18,19 +18,16 @@ endif()
 
 find_package(Qt5 REQUIRED COMPONENTS Core Widgets Network)
 
-# 手动修复 Tesseract 链接（macOS 专用）
+# 手动修复 macOS Tesseract 链接
 if(APPLE)
-  # Homebrew 安装的 Tesseract 路径
   set(TESSERACT_ROOT "/opt/homebrew/opt/tesseract")
   include_directories(${TESSERACT_ROOT}/include)
   link_directories(${TESSERACT_ROOT}/lib)
-  # 显式链接库
   set(TESSERACT_LIBRARIES
     ${TESSERACT_ROOT}/lib/libtesseract.5.dylib
     ${TESSERACT_ROOT}/lib/libtesseract.dylib
   )
 else()
-  # Linux 保持原来的 pkg_check
   find_package(PkgConfig REQUIRED)
   pkg_check_modules(TESSERACT REQUIRED tesseract)
 endif()
@@ -38,9 +35,8 @@ endif()
 # 其他依赖
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(YAML_CPP REQUIRED yaml-cpp)
-pkg_check_modules(SQLITE3 REQUIRED sqlite3)
+pkg_check_modules(SQLite3 REQUIRED sqlite3)
 
-# 包含目录
 include_directories(
   ${PROJECT_SOURCE_DIR}/include
   ${TESSERACT_INCLUDE_DIRS}
@@ -48,15 +44,12 @@ include_directories(
   ${SQLITE3_INCLUDE_DIRS}
 )
 
-# 源文件
 set(SOURCES
   src/main.cpp
 )
 
-# 生成可执行文件
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-# 链接依赖
 target_link_libraries(${PROJECT_NAME}
   Qt5::Core
   Qt5::Widgets
@@ -66,7 +59,6 @@ target_link_libraries(${PROJECT_NAME}
   ${SQLITE3_LIBRARIES}
 )
 
-# 安装规则
 install(TARGETS ${PROJECT_NAME}
   RUNTIME DESTINATION bin
 )
@@ -84,3 +76,13 @@ if(CODE_COVERAGE)
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
 endif()
+
+# -------------------------- 新增：CPack 打包配置 --------------------------
+set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_CONTACT "support@smarttranslator.com")
+set(CPACK_PACKAGE_DESCRIPTION "Smart Translator - 实时屏幕翻译工具，支持OCR和多引擎翻译")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Smart Translator Team")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "qtbase5-dev, tesseract-ocr, libyaml-cpp-dev, libsqlite3-dev")
+
+include(CPack)
