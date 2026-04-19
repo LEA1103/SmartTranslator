@@ -1,0 +1,50 @@
+---
+BasedOnStyle: Google
+Language: Cpp
+
+# 缩进
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 120
+
+# 指针 & 引用 对齐（int* a 而非 int *a）
+DerivePointerAlignment: false
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+# 大括号风格（跟在语句后）
+BreakBeforeBraces: Attach
+
+# 禁止短代码单行压缩
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: false
+
+# 括号对齐
+AlignAfterOpenBracket: Align
+
+# 参数/函数调用 不强行打散
+BinPackParameters: true
+BinPackArguments: true
+
+# 头文件包含排序自动整理
+SortIncludes: true
+
+# ==================== 补充增强（适配 Qt / C++ 项目） ====================
+# 命名空间不缩进（Qt 通用风格）
+NamespaceIndentation: None
+
+# 构造函数初始化列表换行与对齐
+BreakConstructorInitializers: BeforeColon
+ConstructorInitializerIndentWidth: 4
+
+# 访问控制符（public/protected/private）不缩进
+AccessModifierOffset: -4
+
+# 注释对齐
+AlignTrailingComments: true
+
+# 字符串换行保持语义
+BreakStringLiterals: false
