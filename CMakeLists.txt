@@ -31,7 +31,7 @@ set(SOURCES
 )
 
 # 生成可执行程序
-add_executable(${PROJECT_NAME} WIN32 ${SOURCES})
+add_executable(SmartTranslator src/main.cpp)
 
 # 链接 Qt 库
 target_link_libraries(${PROJECT_NAME} PRIVATE
