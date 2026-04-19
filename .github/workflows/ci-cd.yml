@@ -15,30 +15,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Dependencies (CMake, Qt5, NSIS)
+      # 安装依赖（Choco 安装的Qt路径固定）
+      - name: Install Dependencies
         run: |
           choco install cmake qt5-default nsis --no-progress
           refreshenv
 
-      - name: Configure CMake (Auto detect Qt path)
+      # 【关键修复】直接使用Choco安装的Qt固定路径，无需依赖qmake
+      - name: Configure CMake
         run: |
-          $qmakePath = (Get-Command qmake -ErrorAction Stop).Source
-          $qtDir = Split-Path (Split-Path $qmakePath -Parent) -Parent
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$qtDir"
+          cmake -B build -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_PREFIX_PATH="C:\Qt\5.15.2\msvc2019_64"
 
+      # 编译项目
       - name: Build Project
         run: cmake --build build --config Release
 
+      # 打包exe安装包
       - name: Create Installer (EXE)
         run: makensis installer.nsi
 
+      # 上传安装包
       - name: Upload EXE Installer
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
           path: "*.exe"
 
-  # 自动发布到 GitHub Releases (仅打标签 v* 时触发)
+  # 打标签时自动发布Release
   release:
     name: Publish to GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
