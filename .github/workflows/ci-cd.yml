@@ -1,74 +1,30 @@
-name: Build & Package Windows
+# 这是你的 GitHub Actions 工作流（无 Python 版本）
+name: Build
 
 on:
   push:
-    branches: [ main, master ]
   pull_request:
-    branches: [ main, master ]
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build:
+    runs-on: windows-latest  # 你的运行环境
     steps:
-      # 1. 检出代码
+      # 1. 拉取代码（必须保留）
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          submodules: recursive  # 如果你项目有子模块，必须加这行
 
-      # 2. 安装 Python（用于 aqtinstall）
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-
-      # 3. 安装 aqtinstall 并下载 Qt 5.15.2
+      # 2. 安装 Qt（你项目的核心依赖，保留）
       - name: Install Qt 5.15.2
-        run: |
-          pip install aqtinstall
-          aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 ^
-            --archives qtbase qttools qt5compat qtwidgets qtsvg ^
-            --outputdir C:\Qt
-        shell: cmd
-
-      # 4. CMake 配置
-      - name: Configure CMake
-        run: |
-          set QT_DIR=C:\Qt\5.15.2\msvc2019_64
-          mkdir build
-          cd build
-          cmake .. ^
-            -G "Visual Studio 17 2022" ^
-            -A x64 ^
-            -DCMAKE_PREFIX_PATH=%QT_DIR% ^
-            -DCMAKE_BUILD_TYPE=Release
-        shell: cmd
-
-      # 5. 编译项目
-      - name: Build project
-        run: |
-          cd build
-          cmake --build . --config Release --parallel 4
-        shell: cmd
-
-      # 6. 打包 + 自动拷贝 Qt 依赖
-      - name: Package executable
-        run: |
-          mkdir dist
-          copy build\Release\SmartTranslator.exe dist\
-          
-          C:\Qt\5.15.2\msvc2019_64\bin\windeployqt.exe ^
-            --release ^
-            --no-translations ^
-            --no-compiler-runtime ^
-            dist\SmartTranslator.exe
-        shell: cmd
-
-      # 7. 上传成品（可直接下载运行）
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: jurplel/install-qt-action@v3
         with:
-          name: SmartTranslator-Windows
-          path: dist/
-          retention-days: 30  # 保留30天，节省空间
+          version: 5.15.2
+          host: windows
+          target: desktop
+
+      # 3. CMake 配置（保留）
+      - name: Configure CMake
+        run: cmake -B build -S .
+
+      # 4. 编译项目（保留，按需添加）
+      - name: Build
+        run: cmake --build build --config Release
