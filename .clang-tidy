@@ -1,0 +1,37 @@
+---
+# 启用/禁用检查规则
+Checks: >
+  -*
+  ,bugprone-*
+  ,-bugprone-easily-swappable-parameters
+  ,cert-*
+  ,-cert-err58-cpp
+  ,clang-analyzer-*
+  ,cppcoreguidelines-*
+  ,-cppcoreguidelines-pro-bounds-array-to-pointer-decay
+  ,-cppcoreguidelines-pro-type-vararg
+  ,google-*
+  ,-google-runtime-references
+  ,-google-readability-todo
+  ,misc-*
+  ,-misc-non-private-member-variables-in-classes
+  ,modernize-*
+  ,-modernize-use-trailing-return-type
+  ,performance-*
+  ,portability-*
+  ,readability-*
+  ,-readability-magic-numbers
+  ,-readability-identifier-length
+
+# 所有警告视为错误（CI 严格模式）
+WarningsAsErrors: '*'
+
+# 检查所有头文件
+HeaderFilterRegex: '.*'
+
+# 检查选项微调
+CheckOptions:
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '25'
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'
