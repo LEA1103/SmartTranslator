@@ -14,14 +14,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 安装 Qt 5.15.2
+      # 【关键】安装 Python（解决权限问题，给 aqtinstall 提供正常环境）
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 2. 安装 Qt 5.15.2（修正架构参数，升级工具版本）
       - name: Install Qt
-        uses: jurplel/install-qt-action@v3
+        uses: jurplel/install-qt-action@v4  # 升级到 v4，修复兼容性问题
         with:
           version: 5.15.2
           host: windows
           target: desktop
-          arch: msvc2019_64
+          arch: win64_msvc2019_64  # 修正为正确的架构格式
+          modules: qtbase  # 明确指定核心模块，减少解析错误
+          py7zr: true  # 启用 py7zr 解压，提升兼容性
 
       # 3. 配置 CMake
       - name: Configure CMake
@@ -31,14 +39,14 @@ jobs:
       - name: Build project
         run: cmake --build build --config Release
 
-      # 【关键】调试：列出 build 目录文件，确认 exe 生成路径
+      # 调试：列出 build 目录文件
       - name: List build directory
         run: dir build\Release\
 
-      # 【关键】上传 exe 产物
+      # 上传 exe 产物
       - name: Upload executable
         uses: actions/upload-artifact@v4
         with:
           name: SmartTranslator-Windows
           path: build/Release/
-          retention-days: 30 # 产物保存30天
+          retention-days: 30
