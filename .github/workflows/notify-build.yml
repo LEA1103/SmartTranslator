@@ -1,0 +1,32 @@
+# 监听 CI/CD 流水线完成状态，失败时发送 Slack 通知
+name: Notify Build Status
+
+on:
+  workflow_run:
+    # 监听核心 CI/CD 流水线
+    workflows: ["CI/CD Pipeline"]
+    # 触发时机：流水线执行完成
+    types: [completed]
+
+jobs:
+  notify:
+    name: Send Slack Notification
+    runs-on: ubuntu-latest
+    # 仅当 CI/CD 构建失败时执行通知
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+
+    steps:
+      - name: Post to Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          # 通知状态：失败
+          status: failure
+          # 详细通知文案（包含仓库、分支、提交人、构建链接）
+          text: |
+            🔴 构建失败 | ${{ github.repository }}
+            分支: ${{ github.event.workflow_run.head_branch }}
+            提交: ${{ github.event.workflow_run.head_commit.message }}
+            查看详情: ${{ github.event.workflow_run.html_url }}
+        env:
+          # Slack Webhook 地址（存储在 GitHub Secrets 中）
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
