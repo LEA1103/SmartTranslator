@@ -1,30 +1,44 @@
-# 这是你的 GitHub Actions 工作流（无 Python 版本）
-name: Build
+name: Windows Build
 
 on:
   push:
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
 
 jobs:
   build:
-    runs-on: windows-latest  # 你的运行环境
+    runs-on: windows-latest
     steps:
-      # 1. 拉取代码（必须保留）
+      # 1. 拉取代码
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 安装 Qt（你项目的核心依赖，保留）
-      - name: Install Qt 5.15.2
+      # 2. 安装 Qt 5.15.2
+      - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
           version: 5.15.2
           host: windows
           target: desktop
+          arch: msvc2019_64
 
-      # 3. CMake 配置（保留）
+      # 3. 配置 CMake
       - name: Configure CMake
-        run: cmake -B build -S .
+        run: cmake -B build -S . -G "Visual Studio 17 2022" -A x64
 
-      # 4. 编译项目（保留，按需添加）
-      - name: Build
+      # 4. 编译项目
+      - name: Build project
         run: cmake --build build --config Release
+
+      # 【关键】调试：列出 build 目录文件，确认 exe 生成路径
+      - name: List build directory
+        run: dir build\Release\
+
+      # 【关键】上传 exe 产物
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartTranslator-Windows
+          path: build/Release/
+          retention-days: 30 # 产物保存30天
