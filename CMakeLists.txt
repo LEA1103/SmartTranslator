@@ -4,7 +4,7 @@ project(SmartTranslator VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 关键：开启Qt自动处理MOC/RCC/UIC文件
+# 关键：开启Qt自动处理（必须！）
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
@@ -17,10 +17,10 @@ set(SOURCES
     src/main.cpp
 )
 
-# 生成Windows可执行文件
+# 生成Windows可执行文件（WIN32参数避免控制台窗口）
 add_executable(${PROJECT_NAME} WIN32 ${SOURCES})
 
-# 强制链接Qt库
+# 链接Qt库
 target_link_libraries(${PROJECT_NAME}
     Qt5::Core
     Qt5::Widgets
