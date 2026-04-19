@@ -1,35 +1,55 @@
-build-windows:
-  name: Build Windows
-  runs-on: windows-latest
-  steps:
-    - uses: actions/checkout@v4
+name: CI/CD Pipeline (Windows Only)
 
-    # 安装依赖
-    - name: 安装依赖
-      run: |
-        choco install cmake qt5-default nsis
-        refreshenv  # 刷新环境变量，让系统识别新安装的工具
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
 
-    # 关键：获取Qt安装路径并传递给CMake
-    - name: 配置 CMake
-      run: |
-        # 找到qmake的位置，提取Qt根目录
-        $qmakePath = (Get-Command qmake -ErrorAction Stop).Source
-        $qtDir = Split-Path (Split-Path $qmakePath -Parent) -Parent
-        Write-Host "Qt安装路径: $qtDir"
-        cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$qtDir"
+jobs:
+  build-windows:
+    name: Build & Package Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # 编译项目
-    - name: 编译
-      run: cmake --build build --config Release
+      - name: Install Dependencies (CMake, Qt5, NSIS)
+        run: |
+          choco install cmake qt5-default nsis --no-progress
+          refreshenv
 
-    # 打包exe安装包
-    - name: 打包安装包
-      run: makensis installer.nsi
+      - name: Configure CMake (Auto detect Qt path)
+        run: |
+          $qmakePath = (Get-Command qmake -ErrorAction Stop).Source
+          $qtDir = Split-Path (Split-Path $qmakePath -Parent) -Parent
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$qtDir"
 
-    # 上传安装包
-    - name: 上传安装包
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-installer
-        path: "*.exe"
+      - name: Build Project
+        run: cmake --build build --config Release
+
+      - name: Create Installer (EXE)
+        run: makensis installer.nsi
+
+      - name: Upload EXE Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: "*.exe"
+
+  # 自动发布到 GitHub Releases (仅打标签 v* 时触发)
+  release:
+    name: Publish to GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: build-windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: windows-installer/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
