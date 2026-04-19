@@ -14,28 +14,32 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 【关键】安装 Python（解决权限问题，给 aqtinstall 提供正常环境）
+      # 2. 安装 Python 并强制设置路径（彻底解决权限问题）
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+        env:
+          # 强制让系统使用我们安装的 Python，而非受限的 WindowsApps 目录
+          PATH: ${{ steps.python.outputs.pythonLocation }};${{ env.PATH }}
 
-      # 2. 安装 Qt 5.15.2（修正架构参数，升级工具版本）
+      # 3. 安装 Qt 5.15.2（修正模块与架构，解决解析错误）
       - name: Install Qt
-        uses: jurplel/install-qt-action@v4  # 升级到 v4，修复兼容性问题
+        uses: jurplel/install-qt-action@v3  # 降级到 v3，v4 对 Qt 5.x 兼容性不稳定
         with:
           version: 5.15.2
           host: windows
           target: desktop
-          arch: win64_msvc2019_64  # 修正为正确的架构格式
-          modules: qtbase  # 明确指定核心模块，减少解析错误
-          py7zr: true  # 启用 py7zr 解压，提升兼容性
+          arch: win64_msvc2019_64
+          # 移除 modules 参数，安装默认的桌面基础模块，避免解析错误
+          # 同时添加 --autodesktop 确保安装桌面开发必需组件
+          extra: "--autodesktop"
 
-      # 3. 配置 CMake
+      # 4. 配置 CMake
       - name: Configure CMake
         run: cmake -B build -S . -G "Visual Studio 17 2022" -A x64
 
-      # 4. 编译项目
+      # 5. 编译项目
       - name: Build project
         run: cmake --build build --config Release
 
