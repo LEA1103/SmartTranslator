@@ -33,5 +33,5 @@
 ### 构建步骤
 1.  **克隆仓库**
     ```bash
-    git clone https://github.com/你的用户名/SmartTranslator.git
+    git clone https://github.com/LEA1103/SmartTranslator.git
     cd SmartTranslator
