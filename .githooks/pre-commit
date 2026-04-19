@@ -1,0 +1,51 @@
+#!/bin/bash
+set -euo pipefail
+
+echo "============================================="
+echo "  预提交检查：代码格式化 + 静态分析"
+echo "============================================="
+
+# 获取暂存区中的 C/C++ 文件
+FILES=$(git diff --cached --name-only --diff-filter=ACM \
+    | grep -E '\.(cpp|hpp|h|cc|cxx|hh|hxx)$' \
+    | tr '\n' ' ')
+
+if [ -n "$FILES" ]; then
+    echo "检测到待提交代码文件，开始检查..."
+    echo "文件：$FILES"
+    echo
+
+    # ==================== 1. 代码格式检查 (clang-format) ====================
+    echo "[1/2] 运行 clang-format 格式检查..."
+    clang-format --dry-run --Werror $FILES
+
+    if [ $? -ne 0 ]; then
+        echo
+        echo "❌ 错误：代码格式不符合规范！"
+        echo "请运行以下命令自动格式化："
+        echo "  clang-format -i $FILES"
+        echo
+        exit 1
+    fi
+
+    echo "✅ clang-format 检查通过"
+    echo
+
+    # ==================== 2. 静态代码检查 (clang-tidy) ====================
+    echo "[2/2] 运行 clang-tidy 代码质量检查..."
+    run-clang-tidy -quiet $FILES
+
+    if [ $? -ne 0 ]; then
+        echo
+        echo "❌ 错误：clang-tidy 检查未通过"
+        echo "请修复代码问题后再提交"
+        echo
+        exit 1
+    fi
+
+    echo "✅ clang-tidy 检查通过"
+    echo
+fi
+
+echo "🎉 所有预提交检查通过！可以正常提交"
+echo
