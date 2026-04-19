@@ -15,27 +15,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 安装依赖（Choco 安装的Qt路径固定）
-      - name: Install Dependencies
+      # 1. 安装Python（用于稳定安装Qt）
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 2. 用aqtinstall稳定安装Qt 5.15.2（路径固定）
+      - name: Install Qt 5.15.2
         run: |
-          choco install cmake qt5-default nsis --no-progress
+          pip install aqtinstall
+          aqt install-qt 5.15.2 windows desktop win64_msvc2019_64 --outputdir C:\Qt
+
+      # 3. 安装CMake和NSIS
+      - name: Install Build Tools
+        run: |
+          choco install cmake nsis --no-progress
           refreshenv
 
-      # 【关键修复】直接使用Choco安装的Qt固定路径，无需依赖qmake
+      # 4. 配置CMake（指定Qt路径和VS生成器）
       - name: Configure CMake
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release `
+          cmake -B build -G "Visual Studio 17 2022" `
+          -DCMAKE_BUILD_TYPE=Release `
           -DCMAKE_PREFIX_PATH="C:\Qt\5.15.2\msvc2019_64"
 
-      # 编译项目
+      # 5. 编译项目
       - name: Build Project
         run: cmake --build build --config Release
 
-      # 打包exe安装包
-      - name: Create Installer (EXE)
+      # 6. 打包EXE安装包
+      - name: Create Installer
         run: makensis installer.nsi
 
-      # 上传安装包
+      # 7. 上传安装包
       - name: Upload EXE Installer
         uses: actions/upload-artifact@v4
         with:
