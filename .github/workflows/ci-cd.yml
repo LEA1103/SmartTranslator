@@ -8,7 +8,6 @@ on:
     branches: [ main ]
 
 jobs:
-  # 1. 代码规范检查 (格式化 + 静态分析)
   code-check:
     name: Code Quality Checks
     runs-on: ubuntu-latest
@@ -26,7 +25,6 @@ jobs:
       - name: Cppcheck 静态检查
         run: cppcheck src/ include/ --quiet
 
-  # 2. Linux 构建 (Ubuntu)
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
@@ -56,7 +54,6 @@ jobs:
           name: linux-deb
           path: build/*.deb
 
- # macOS 构建步骤片段
   build-macos:
     name: Build macOS
     runs-on: macos-latest
@@ -66,13 +63,10 @@ jobs:
 
       - name: 安装依赖
         run: |
-          brew install cmake qt@5 tesseract yaml-cpp sqlite3 pkg-config  # 新增 pkg-config
+          brew install cmake qt@5 tesseract yaml-cpp sqlite3 pkg-config
 
-      - name: 配置 CMake
-        run: |
-          cmake -B build \
-            -  DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt@5
+      - name: 配置 CMake 【修复版】
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt@5
 
       - name: 编译
         run: cmake --build build -j4
@@ -88,7 +82,6 @@ jobs:
           name: macos-dmg
           path: "*.dmg"
 
-  # 4. Windows 构建
   build-windows:
     name: Build Windows
     runs-on: windows-latest
@@ -116,7 +109,6 @@ jobs:
           name: windows-installer
           path: "*.exe"
 
-  # 5. 发布 Release (仅打标签时触发)
   release:
     name: Create Release
     if: startsWith(github.ref, 'refs/tags/v')
